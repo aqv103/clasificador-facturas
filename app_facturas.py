@@ -51,11 +51,15 @@ if not candidatas:
 columna_estado = st.selectbox("🧭 Selecciona la columna que indica si la factura está pagada:", candidatas)
 
 # 4) Normalizar valores y clasificar
-valores_pagada = {"pagada", "cobrada", "sí", "si", "true", "1", "y", "yes", "paga", "paid"}
 serie = df[columna_estado].astype(str).str.lower().str.strip()
 
-cobradas = df[serie.isin(valores_pagada)].copy()
-no_cobradas = df[~serie.isin(valores_pagada)].copy()
+# Palabras que indican cobro o no cobro
+valores_pagada = {"pagada", "cobrada", "sí", "si", "true", "1", "y", "yes", "paga", "paid"}
+valores_no_pagada = {"no", "pendiente", "falta", "impaga", "no pagada", "sin"}
+
+# Clasificación más robusta
+cobradas = df[serie.apply(lambda x: any(p in x for p in valores_pagada) and not any(n in x for n in valores_no_pagada))].copy()
+no_cobradas = df[~serie.apply(lambda x: any(p in x for p in valores_pagada) and not any(n in x for n in valores_no_pagada))].copy()
 
 # 5) Resumen
 st.subheader("📊 Resumen general")
@@ -117,4 +121,5 @@ if not cobradas.empty or not no_cobradas.empty:
         file_name="clasificacion_facturas.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
 
