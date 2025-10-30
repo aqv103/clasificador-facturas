@@ -1,122 +1,120 @@
 # app_facturas.py
 import streamlit as st
 import pandas as pd
+from io import BytesIO
 
-# Configuración de la página
-st.set_page_config(page_title="Clasificador de Facturas", page_icon="💰", layout="wide")
+st.set_page_config(page_title="Clasificador de Facturas", page_icon="💸", layout="wide")
 
-st.title("💰 Clasificador de Facturas Cobradas y No Cobradas")
+# Título y descripción
+st.title("💸 Clasificador de Facturas Cobradas y No Cobradas")
+st.write(
+    "Esta aplicación te permite cargar un archivo de facturas (CSV o Excel) y clasificarlas "
+    "automáticamente en **cobradas** y **no cobradas**. Solo necesitas que el archivo tenga alguna "
+    "columna que indique el estado del pago (por ejemplo, *Estado*, *Pagada*, *Cobrado*, etc.)."
+)
 
-st.write("""
-Esta aplicación te permite cargar un archivo de facturas (CSV o Excel) y clasificarlas automáticamente en **cobradas** y **no cobradas**.
-Solo necesitas que el archivo tenga alguna columna que indique el estado del pago (por ejemplo, *Estado*, *Pagada*, *Cobrado*, etc.).
-""")
-
-# Subir archivo
+# 1) Subida de archivo
 archivo = st.file_uploader("📤 Sube tu archivo de facturas", type=["csv", "xlsx"])
 
-if archivo:
-    # Leer archivo
-    try:
-        if archivo.name.lower().endswith(".csv"):
-            df = pd.read_csv(archivo, encoding="utf-8", sep=None, engine="python")
-        else:
-            df = pd.read_excel(archivo)
-    except Exception as e:
-        st.error(f"❌ Error al leer el archivo: {e}")
-        st.stop()
+# Si no hay archivo, mostramos info y salimos (así evitamos NameError)
+if archivo is None:
+    st.info("Sube un archivo CSV o Excel para comenzar.")
+    st.stop()
 
-    st.subheader("📋 Vista previa de los datos")
-    st.dataframe(df.head())
-
-    st.subheader("💹 Facturas cobradas y no cobradas")
-
-    # Detectar posibles columnas relacionadas con estado/pago
-    columnas_estado = [c for c in df.columns if any(x in c.lower() for x in ["estado", "pag", "cob"])]
-    if not columnas_estado:
-        st.error("⚠️ No se detectó ninguna columna relacionada con el pago. Asegúrate de tener una columna llamada por ejemplo 'Estado' o 'Pagada'.")
+# 2) Leer archivo
+try:
+    if archivo.name.lower().endswith(".csv"):
+        df = pd.read_csv(archivo, encoding="utf-8", sep=None, engine="python")
     else:
-        columna_estado = st.selectbox("Selecciona la columna que indica si la factura está pagada:", columnas_estado)
+        df = pd.read_excel(archivo)
+except Exception as e:
+    st.error(f"❌ Error al leer el archivo: {e}")
+    st.stop()
 
-        # Normalizar valores
-        valores_pagada = {"pagada", "cobrada", "pagado", "cobrado", "sí", "si", "1", "true", "y", "yes"}
-        df[columna_estado] = df[columna_estado].astype(str).str.lower().str.strip()
+# Vista previa
+st.subheader("📋 Vista previa de los datos")
+st.dataframe(df.head())
 
-        # Clasificar
-        cobradas = df[df[columna_estado].isin(valores_pagada)]
-        no_cobradas = df[~df.index.isin(cobradas.index)]
+if df.empty:
+    st.warning("El archivo está vacío.")
+    st.stop()
 
-        # Mostrar resultados
-        st.subheader("💸 Facturas cobradas")
-        st.dataframe(cobradas)
+# 3) Detectar posibles columnas relacionadas con el estado de pago
+candidatas = [c for c in df.columns if any(x in c.lower() for x in ["estado", "pag", "cob", "paid", "status"])]
+if not candidatas:
+    st.error(
+        "⚠️ No se detectó ninguna columna relacionada con el pago. "
+        "Asegúrate de tener una columna llamada por ejemplo 'Estado', 'Pagada' o 'Cobrado'."
+    )
+    st.stop()
 
-        st.subheader("🧾 Facturas no cobradas")
-        st.dataframe(no_cobradas)
-import io
+columna_estado = st.selectbox("🧭 Selecciona la columna que indica si la factura está pagada:", candidatas)
 
-st.subheader("📥 Exportar resultados")
+# 4) Normalizar valores y clasificar
+valores_pagada = {"pagada", "cobrada", "sí", "si", "true", "1", "y", "yes", "paga", "paid"}
+serie = df[columna_estado].astype(str).str.lower().str.strip()
 
-# —— Cobradas ——
+cobradas = df[serie.isin(valores_pagada)].copy()
+no_cobradas = df[~serie.isin(valores_pagada)].copy()
+
+# 5) Resumen
+st.subheader("📊 Resumen general")
+total = len(df)
+total_cobradas = len(cobradas)
+total_no_cobradas = len(no_cobradas)
+
+c1, c2, c3 = st.columns(3)
+c1.metric("Total de facturas", total)
+c2.metric("Cobradas", total_cobradas)
+c3.metric("No cobradas", total_no_cobradas)
+
+st.bar_chart(
+    pd.DataFrame(
+        {"Cobradas": [total_cobradas], "No cobradas": [total_no_cobradas]}
+    ).T.rename(columns={0: "Cantidad"})
+)
+
+# 6) Mostrar tablas
+st.subheader("✅ Facturas cobradas")
+st.dataframe(cobradas, use_container_width=True)
+
+st.subheader("⛔ Facturas NO cobradas")
+st.dataframe(no_cobradas, use_container_width=True)
+
+# 7) Exportar resultados
+st.subheader("💾 Exportar resultados")
+
+# CSV cobradas
 if not cobradas.empty:
-    # CSV
     st.download_button(
         "⬇️ Descargar cobradas (CSV)",
         cobradas.to_csv(index=False).encode("utf-8"),
         file_name="facturas_cobradas.csv",
-        mime="text/csv"
-    )
-    # Excel
-    buf_xls_c = io.BytesIO()
-    with pd.ExcelWriter(buf_xls_c, engine="openpyxl") as writer:
-        cobradas.to_excel(writer, index=False, sheet_name="Cobradas")
-    st.download_button(
-        "⬇️ Descargar cobradas (Excel)",
-        buf_xls_c.getvalue(),
-        file_name="facturas_cobradas.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        mime="text/csv",
     )
 
-# —— No cobradas ——
+# CSV no cobradas
 if not no_cobradas.empty:
-    # CSV
     st.download_button(
         "⬇️ Descargar no cobradas (CSV)",
         no_cobradas.to_csv(index=False).encode("utf-8"),
         file_name="facturas_no_cobradas.csv",
-        mime="text/csv"
+        mime="text/csv",
     )
-    # Excel
-    buf_xls_nc = io.BytesIO()
-    with pd.ExcelWriter(buf_xls_nc, engine="openpyxl") as writer:
-        no_cobradas.to_excel(writer, index=False, sheet_name="NoCobradas")
+
+# Excel con ambas hojas (opcional)
+if not cobradas.empty or not no_cobradas.empty:
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        if not cobradas.empty:
+            cobradas.to_excel(writer, index=False, sheet_name="Cobradas")
+        if not no_cobradas.empty:
+            no_cobradas.to_excel(writer, index=False, sheet_name="No cobradas")
+    buffer.seek(0)
     st.download_button(
-        "⬇️ Descargar no cobradas (Excel)",
-        buf_xls_nc.getvalue(),
-        file_name="facturas_no_cobradas.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "⬇️ Descargar Excel (2 hojas)",
+        data=buffer,
+        file_name="clasificacion_facturas.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    # Exportar resultados
-    # Descarga de resultados
-    st.subheader("💾 Exportar resultados")
-    if not cobradas.empty:
-        st.download_button(
-            "⬇️ Descargar cobradas (CSV)",
-            cobradas.to_csv(index=False).encode("utf-8"),
-            file_name="facturas_cobradas.csv",
-            mime="text/csv"
-        )
-
-    if not no_cobradas.empty:
-        st.download_button(
-            "⬇️ Descargar no cobradas (CSV)",
-            no_cobradas.to_csv(index=False).encode("utf-8"),
-            file_name="facturas_no_cobradas.csv",
-            mime="text/csv"
-        )
-    else:
-        st.info("📤 Sube un archivo CSV o Excel para comenzar.")
-
-
-
-
 
