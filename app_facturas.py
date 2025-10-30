@@ -2,6 +2,90 @@
 import re
 import pdfplumber
 from io import BytesIO
+# --- Helpers para PDFs -------------------------------------------------
+import re
+import pdfplumber
+
+# Convierte números con coma o punto a float (e.g. "1.234,56" -> 1234.56)
+def _parse_amount(raw: str | None) -> float | None:
+    if not raw:
+        return None
+    s = str(raw).strip().replace(" ", "")
+    # normaliza separadores: quita miles y deja '.' como decimal
+    if "," in s and "." in s:
+        # "1.234,56" -> "1234.56"
+        s = s.replace(".", "").replace(",", ".")
+    else:
+        # "1,23" -> "1.23"    "1234" -> "1234"
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except:
+        return None
+
+# Detecta si el texto sugiere "pagada" o "no pagada"
+def _infer_estado_from_text(txt_lower: str) -> str | None:
+    pagadas = ["pagada", "pagado", "cobrada", "cobrado", "paid"]
+    impagas = ["no pagada", "no pagado", "no cobrada", "no cobrado",
+               "impaga", "pendiente", "vencida", "atrasada", "unpaid"]
+    # chequea primero frases con "no ..."
+    for w in impagas:
+        if w in txt_lower:
+            return "No pagada"
+    for w in pagadas:
+        if w in txt_lower:
+            return "Pagada"
+    return None
+
+# Extrae campos básicos de un PDF de factura (1 factura por PDF)
+def extract_invoice_from_pdf(fileobj) -> dict:
+    with pdfplumber.open(fileobj) as pdf:
+        full_text = "\n".join((p.extract_text() or "") for p in pdf.pages)
+
+    txt = full_text
+    txt_lower = txt.lower()
+
+    # Nº de factura (patrón flexible)
+    m_fact = re.search(r"(?:factura(?:\s*n[ºo]\.?|\s*no\.?)?\s*[:\-]?\s*)([a-z0-9\-\/\.]+)",
+                       txt_lower, re.IGNORECASE)
+    factura = m_fact.group(1).strip().upper() if m_fact else None
+
+    # Cliente (línea tras "Cliente:" o "Razón social:")
+    m_cli = re.search(r"(?:cliente|raz[oó]n\s*social)\s*[:\-]\s*(.+)", txt, re.IGNORECASE)
+    cliente = m_cli.group(1).strip() if m_cli else None
+    if cliente:
+        cliente = cliente.splitlines()[0].strip()
+
+    # Estado (intenta "Estado: X"; si no, infiere por palabras)
+    m_estado = re.search(r"(?:estado|situaci[oó]n|pago)\s*[:\-]\s*([^\n\r]+)", txt, re.IGNORECASE)
+    estado_raw = m_estado.group(1).strip() if m_estado else None
+    if estado_raw:
+        inf = _infer_estado_from_text(estado_raw.lower())
+        estado = inf if inf else estado_raw
+    else:
+        estado = _infer_estado_from_text(txt_lower) or "Desconocido"
+
+    # Importe (Total/Importe)
+    m_total = re.search(r"(?:total(?:\s*a\s*pagar)?|importe)\s*[:\-]?\s*([€$]?\s*[0-9\.\,]+)",
+                        txt, re.IGNORECASE)
+    importe = _parse_amount(m_total.group(1)) if m_total else None
+
+    # Valores por defecto si faltan
+    if not factura:
+        factura = "SIN_NUMERO"
+    if not cliente:
+        cliente = "DESCONOCIDO"
+    if importe is None:
+        importe = 0.0
+
+    return {
+        "Factura": factura,
+        "Cliente": cliente,
+        "Estado": estado,
+        "Importe": importe,
+        "Fuente": "PDF",
+    }
+
 
 import streamlit as st
 import pandas as pd
@@ -125,6 +209,7 @@ if not cobradas.empty or not no_cobradas.empty:
         file_name="clasificacion_facturas.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
 
 
 
