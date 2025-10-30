@@ -1,4 +1,8 @@
 # app_facturas.py
+import re
+import pdfplumber
+from io import BytesIO
+
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -121,5 +125,6 @@ if not cobradas.empty or not no_cobradas.empty:
         file_name="clasificacion_facturas.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
 
 
