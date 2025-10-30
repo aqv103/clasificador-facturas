@@ -96,23 +96,24 @@ if not no_cobradas.empty:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-        # Resumen numérico
-# Resumen numérico
-st.subheader("📊 Resumen general")
+  # Exportar resultados
+st.subheader("💾 Exportar resultados")
 
-total = len(df)
-total_cobradas = len(cobradas)
-total_no_cobradas = len(no_cobradas)
+# Botones para exportar datos
+st.download_button(
+    label="⬇️ Descargar facturas cobradas",
+    data=cobradas.to_csv(index=False).encode("utf-8"),
+    file_name="facturas_cobradas.csv",
+    mime="text/csv"
+)
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Total de facturas", total)
-col2.metric("Cobradas", total_cobradas)
-col3.metric("No cobradas", total_no_cobradas)
+st.download_button(
+    label="⬇️ Descargar facturas no cobradas",
+    data=no_cobradas.to_csv(index=False).encode("utf-8"),
+    file_name="facturas_no_cobradas.csv",
+    mime="text/csv"
+)
 
-st.bar_chart(pd.DataFrame({
-    "Cobradas": [total_cobradas],
-    "No cobradas": [total_no_cobradas]
-}))
 
 
         # Descarga de resultados
@@ -133,5 +134,6 @@ st.bar_chart(pd.DataFrame({
             )
 else:
     st.info("⬆️ Sube un archivo CSV o Excel para comenzar.")
+
 
 
