@@ -97,20 +97,23 @@ if not no_cobradas.empty:
     )
 
         # Resumen numérico
-        st.subheader("📊 Resumen general")
-        total = len(df)
-        total_cobradas = len(cobradas)
-        total_no_cobradas = len(no_cobradas)
+# Resumen numérico
+st.subheader("📊 Resumen general")
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total de facturas", total)
-        col2.metric("Cobradas", total_cobradas)
-        col3.metric("No cobradas", total_no_cobradas)
+total = len(df)
+total_cobradas = len(cobradas)
+total_no_cobradas = len(no_cobradas)
 
-        st.bar_chart(pd.DataFrame({
-            "Cobradas": [total_cobradas],
-            "No cobradas": [total_no_cobradas]
-        }))
+col1, col2, col3 = st.columns(3)
+col1.metric("Total de facturas", total)
+col2.metric("Cobradas", total_cobradas)
+col3.metric("No cobradas", total_no_cobradas)
+
+st.bar_chart(pd.DataFrame({
+    "Cobradas": [total_cobradas],
+    "No cobradas": [total_no_cobradas]
+}))
+
 
         # Descarga de resultados
         st.subheader("📥 Exportar resultados")
@@ -130,4 +133,5 @@ if not no_cobradas.empty:
             )
 else:
     st.info("⬆️ Sube un archivo CSV o Excel para comenzar.")
+
 
