@@ -95,45 +95,28 @@ if not no_cobradas.empty:
         file_name="facturas_no_cobradas.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+    # Exportar resultados
+    # Descarga de resultados
+    st.subheader("💾 Exportar resultados")
+    if not cobradas.empty:
+        st.download_button(
+            "⬇️ Descargar cobradas (CSV)",
+            cobradas.to_csv(index=False).encode("utf-8"),
+            file_name="facturas_cobradas.csv",
+            mime="text/csv"
+        )
 
-  # Exportar resultados
-st.subheader("💾 Exportar resultados")
-
-# Botones para exportar datos
-st.download_button(
-    label="⬇️ Descargar facturas cobradas",
-    data=cobradas.to_csv(index=False).encode("utf-8"),
-    file_name="facturas_cobradas.csv",
-    mime="text/csv"
-)
-
-st.download_button(
-    label="⬇️ Descargar facturas no cobradas",
-    data=no_cobradas.to_csv(index=False).encode("utf-8"),
-    file_name="facturas_no_cobradas.csv",
-    mime="text/csv"
-)
+    if not no_cobradas.empty:
+        st.download_button(
+            "⬇️ Descargar no cobradas (CSV)",
+            no_cobradas.to_csv(index=False).encode("utf-8"),
+            file_name="facturas_no_cobradas.csv",
+            mime="text/csv"
+        )
+    else:
+        st.info("📤 Sube un archivo CSV o Excel para comenzar.")
 
 
-
-        # Descarga de resultados
-        st.subheader("📥 Exportar resultados")
-        if not cobradas.empty:
-            st.download_button(
-                "⬇️ Descargar cobradas (CSV)",
-                cobradas.to_csv(index=False).encode("utf-8"),
-                file_name="facturas_cobradas.csv",
-                mime="text/csv"
-            )
-        if not no_cobradas.empty:
-            st.download_button(
-                "⬇️ Descargar no cobradas (CSV)",
-                no_cobradas.to_csv(index=False).encode("utf-8"),
-                file_name="facturas_no_cobradas.csv",
-                mime="text/csv"
-            )
-else:
-    st.info("⬆️ Sube un archivo CSV o Excel para comenzar.")
 
 
 
