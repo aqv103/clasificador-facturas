@@ -29,6 +29,8 @@ if archivo:
     st.subheader("📋 Vista previa de los datos")
     st.dataframe(df.head())
 
+    st.subheader("💹 Facturas cobradas y no cobradas")
+
     # Detectar posibles columnas relacionadas con estado/pago
     columnas_estado = [c for c in df.columns if any(x in c.lower() for x in ["estado", "pag", "cob"])]
     if not columnas_estado:
@@ -50,6 +52,49 @@ if archivo:
 
         st.subheader("🧾 Facturas no cobradas")
         st.dataframe(no_cobradas)
+import io
+
+st.subheader("📥 Exportar resultados")
+
+# —— Cobradas ——
+if not cobradas.empty:
+    # CSV
+    st.download_button(
+        "⬇️ Descargar cobradas (CSV)",
+        cobradas.to_csv(index=False).encode("utf-8"),
+        file_name="facturas_cobradas.csv",
+        mime="text/csv"
+    )
+    # Excel
+    buf_xls_c = io.BytesIO()
+    with pd.ExcelWriter(buf_xls_c, engine="openpyxl") as writer:
+        cobradas.to_excel(writer, index=False, sheet_name="Cobradas")
+    st.download_button(
+        "⬇️ Descargar cobradas (Excel)",
+        buf_xls_c.getvalue(),
+        file_name="facturas_cobradas.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+# —— No cobradas ——
+if not no_cobradas.empty:
+    # CSV
+    st.download_button(
+        "⬇️ Descargar no cobradas (CSV)",
+        no_cobradas.to_csv(index=False).encode("utf-8"),
+        file_name="facturas_no_cobradas.csv",
+        mime="text/csv"
+    )
+    # Excel
+    buf_xls_nc = io.BytesIO()
+    with pd.ExcelWriter(buf_xls_nc, engine="openpyxl") as writer:
+        no_cobradas.to_excel(writer, index=False, sheet_name="NoCobradas")
+    st.download_button(
+        "⬇️ Descargar no cobradas (Excel)",
+        buf_xls_nc.getvalue(),
+        file_name="facturas_no_cobradas.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
         # Resumen numérico
         st.subheader("📊 Resumen general")
@@ -85,3 +130,4 @@ if archivo:
             )
 else:
     st.info("⬆️ Sube un archivo CSV o Excel para comenzar.")
+
